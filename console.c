@@ -128,10 +128,11 @@ panic(char *s)
 #define CRTPORT 0x3d4
 static ushort *crt = (ushort*)P2V(0xb8000);  // CGA memory
 
+static int left_strides = 0;
 static void
 cgaputc(int c)
 {
-  int pos;
+  int pos, i=0;
   
   // Cursor position: col + 80*row.
   outb(CRTPORT, 14);
@@ -145,9 +146,13 @@ cgaputc(int c)
     if(pos > 0) --pos;
   } else if (c == RIGHTARROW) {
       ++pos;
-  } else
+  } else{
+      i = left_strides;
+      while(i-->0){
+	crt[pos + i + 1]=crt[pos + i];
+      }
       crt[pos++] = (c&0xff) | 0x0700;  // black on white
-
+  }
   if(pos < 0 || pos > 25*80)
     panic("pos under/overflow");
   
@@ -194,14 +199,22 @@ struct {
 } input;
 
 #define C(x)  ((x)-'@')  // Control-x
-void shift_buffer_right(char* start, char* end) {
+void 
+shift_buffer_right(char* start, char* end) {
   char * tail = end - 1;
   while(end != start) {
     *end-- = *tail--;
   }
 } 
 
-static int left_strides = 0;
+
+void
+refresh_screen(){  
+  char * iter = input.buf + input.e;
+  while( iter++ != input.buf+input.e+left_strides)
+    cgaputc(*iter);
+}
+
 void
 consoleintr(int (*getc)(void))
 {
@@ -247,15 +260,15 @@ consoleintr(int (*getc)(void))
         c = (c == '\r') ? '\n' : c;
         if('\n' == c){  // if we press enter we want the whole buffer to be
           input.e = (input.e + left_strides) % INPUT_BUF;
-          --left_strides;
+	  left_strides  = 0;
         }
-        //if(left_strides)
-         //shift_buffer_right(input.buf + input.e, input.buf + INPUT_BUF); 
  
-        left_strides -= (left_strides > 0) ? 1 : 0;
-       
-        input.buf[input.e++ % INPUT_BUF] = c;
-        consputc(c);
+	if (left_strides > 0) { //if we've taken a left and then we write.
+	  shift_buffer_right(input.buf + input.e,
+			   input.buf + input.e + left_strides);
+	}
+	input.buf[input.e++ % INPUT_BUF] = c;
+	consputc(c);
         if(c == '\n' || c == C('D') || input.e == input.r+INPUT_BUF){
           left_strides = 0;
           input.w = input.e;
