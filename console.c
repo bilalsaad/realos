@@ -127,7 +127,19 @@ panic(char *s)
 #define RIGHTARROW 229
 #define CRTPORT 0x3d4
 static ushort *crt = (ushort*)P2V(0xb8000);  // CGA memory
-
+void 
+shift_buffer_right(char* start, char* end) {
+  char * tail = end - 1;
+  while(end != start) {
+    *end-- = *tail--;
+  }
+}
+void
+shift_buffer_left(char * start, char * end) {
+ char * hare = start + 1;
+ while (hare != end)
+   *start++=*hare++;
+}
 static int left_strides = 0;
 static void
 cgaputc(int c)
@@ -142,8 +154,14 @@ cgaputc(int c)
 
   if(c == '\n')
     pos += 80 - pos%80;
-  else if(c == BACKSPACE || c == LEFTARROW){
+  else if(c == BACKSPACE){
     if(pos > 0) --pos;
+    if (left_strides > 0) {
+	for ( i = pos; i<=left_strides+pos; ++i)
+	  crt[i]=crt[i+1];
+    }
+  } else if (c == LEFTARROW) {
+    if (pos > 0) --pos;
   } else if (c == RIGHTARROW) {
       ++pos;
   } else{
@@ -166,7 +184,7 @@ cgaputc(int c)
   outb(CRTPORT+1, pos>>8);
   outb(CRTPORT, 15);
   outb(CRTPORT+1, pos);
-  if (BACKSPACE != c)
+  if (BACKSPACE != c || left_strides > 0)
     crt[pos]= crt[pos] | 0x0700;
   else
     crt[pos] = ' ' | 0x0700;
@@ -199,21 +217,6 @@ struct {
 } input;
 
 #define C(x)  ((x)-'@')  // Control-x
-void 
-shift_buffer_right(char* start, char* end) {
-  char * tail = end - 1;
-  while(end != start) {
-    *end-- = *tail--;
-  }
-} 
-
-
-void
-refresh_screen(){  
-  char * iter = input.buf + input.e;
-  while( iter++ != input.buf+input.e+left_strides)
-    cgaputc(*iter);
-}
 
 void
 consoleintr(int (*getc)(void))
@@ -236,6 +239,11 @@ consoleintr(int (*getc)(void))
     case C('H'): case '\x7f':  // Backspace
       if(input.e != input.w){
         input.e--;
+	if(left_strides > 0){
+	 shift_buffer_left(input.buf + input.e,
+			   input.buf + input.e + left_strides +1);
+			  
+	}
         consputc(BACKSPACE);
       }
       break;
