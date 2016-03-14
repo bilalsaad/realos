@@ -13,7 +13,10 @@
 #include "mmu.h"
 #include "proc.h"
 #include "x86.h"
-
+#define KEY_UP          0xE2
+#define KEY_DN          0xE3
+#define MAX_HISTORY 16
+#define HISTORY_SIZE 128
 static void consputc(int);
 
 static int panicked = 0;
@@ -218,6 +221,46 @@ struct {
 
 #define C(x)  ((x)-'@')  // Control-x
 
+struct {
+  char commands[MAX_HISTORY][HISTORY_SIZE];
+  int command_sizes[MAX_HISTORY];
+  int lastcommand;
+} history;
+
+//adds a string from start to end to history
+void
+add_to_history(char * start, char * end){
+ int i;
+ if (history.lastcommand == MAX_HISTORY){
+  for(i=0; i<MAX_HISTORY-1; ++i)
+    memmove(history.commands[i],history.commands[i+1],
+	    history.command_sizes[i+1]);
+  --history.lastcommand;
+ }
+ history.command_sizes[history.lastcommand] = end - start;
+ memmove(history.commands[history.lastcommand++],start,end-start);
+}
+void 
+kill_line(){
+  while(input.e != input.w &&
+	input.buf[(input.e-1) % INPUT_BUF] != '\n'){
+    input.e--;
+    consputc(BACKSPACE);
+  }
+
+}
+void 
+display_history(){
+ int i =0;
+ int size = history.command_sizes[history.lastcommand-1];
+ char * cmd = history.commands[history.lastcommand-1];
+ kill_line();
+ for (i = 0; i< size; ++i)
+   cgaputc(*cmd++);
+ memmove(input.buf+input.w,cmd,size);
+ input.e+=size % INPUT_BUF;
+ 
+}
 void
 consoleintr(int (*getc)(void))
 {
@@ -263,11 +306,18 @@ consoleintr(int (*getc)(void))
         ++input.e;
       }
       break;
+     case KEY_UP: 
+       if(history.lastcommand > 0){
+	 display_history();
+       }
+     break;
     default:
       if(c != 0 && input.e-input.r < INPUT_BUF){
         c = (c == '\r') ? '\n' : c;
         if('\n' == c){  // if we press enter we want the whole buffer to be
           input.e = (input.e + left_strides) % INPUT_BUF;
+	  add_to_history(input.buf + input.w,
+			 input.buf + input.e);
 	  left_strides  = 0;
         }
  
