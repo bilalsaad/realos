@@ -225,6 +225,7 @@ struct {
   char commands[MAX_HISTORY][HISTORY_SIZE];
   int command_sizes[MAX_HISTORY];
   int lastcommand;
+  int display_command;
 } history;
 
 //adds a string from start to end to history
@@ -239,7 +240,9 @@ add_to_history(char * start, char * end){
  }
  history.command_sizes[history.lastcommand] = end - start;
  memmove(history.commands[history.lastcommand++],start,end-start);
+ history.display_command = history.lastcommand - 1;
 }
+
 void 
 kill_line(){
   while(input.e != input.w &&
@@ -247,20 +250,22 @@ kill_line(){
     input.e--;
     consputc(BACKSPACE);
   }
-
 }
+
 void 
 display_history(){
  int i =0;
- int size = history.command_sizes[history.lastcommand-1];
- char * cmd = history.commands[history.lastcommand-1];
+ int size = history.command_sizes[history.display_command];
+ char * cmd = history.commands[history.display_command];
  kill_line();
- for (i = 0; i< size; ++i)
-   cgaputc(*cmd++);
- memmove(input.buf+input.w,cmd,size);
+ input.e = input.w;
+ memmove(input.buf + input.w, cmd, size);
+ for (i = 0; i < size; ++i){
+   consputc(*cmd++);
+ }
  input.e+=size % INPUT_BUF;
- 
 }
+ 
 void
 consoleintr(int (*getc)(void))
 {
@@ -282,18 +287,16 @@ consoleintr(int (*getc)(void))
     case C('H'): case '\x7f':  // Backspace
       if(input.e != input.w){
         input.e--;
-	if(left_strides > 0){
-	 shift_buffer_left(input.buf + input.e,
-			   input.buf + input.e + left_strides +1);
-			  
-	}
-        consputc(BACKSPACE);
+        if(left_strides > 0){
+         shift_buffer_left(input.buf + input.e,
+               input.buf + input.e + left_strides +1);
+              
+        }
+            consputc(BACKSPACE);
       }
       break;
      case LEFTARROW: //makeshift left arrow
       if(input.e != input.w) { //we want to shift the buffer to the right
-       // shift_buffer_right(input.buf + input.e, input.buf + INPUT_BUF);
-       
        cgaputc(LEFTARROW);
        ++left_strides;
        --input.e;
@@ -307,39 +310,49 @@ consoleintr(int (*getc)(void))
       }
       break;
      case KEY_UP: 
-       if(history.lastcommand > 0){
-	 display_history();
+       if(history.lastcommand > 0) {
+           display_history();
+	   history.display_command -= (history.display_command) ? 1 :0;
        }
+     break;
+     case KEY_DN: 
+	if((history.lastcommand - history.display_command ) > 1) {
+	 ++history.display_command;
+	 display_history();
+	}
+	else if (history.lastcommand > history.display_command)
+	  kill_line();
      break;
     default:
       if(c != 0 && input.e-input.r < INPUT_BUF){
         c = (c == '\r') ? '\n' : c;
         if('\n' == c){  // if we press enter we want the whole buffer to be
           input.e = (input.e + left_strides) % INPUT_BUF;
-	  add_to_history(input.buf + input.w,
-			 input.buf + input.e);
-	  left_strides  = 0;
+           if(input.e != input.w) 
+	     add_to_history(input.buf + input.w,
+               input.buf + input.e);
+            left_strides  = 0;
         }
- 
-	if (left_strides > 0) { //if we've taken a left and then we write.
-	  shift_buffer_right(input.buf + input.e,
-			   input.buf + input.e + left_strides);
-	}
-	input.buf[input.e++ % INPUT_BUF] = c;
-	consputc(c);
+       
+        if (left_strides > 0) { //if we've taken a left and then we write.
+          shift_buffer_right(input.buf + input.e,
+               input.buf + input.e + left_strides);
+        }
+        input.buf[input.e++ % INPUT_BUF] = c;
+        consputc(c);
         if(c == '\n' || c == C('D') || input.e == input.r+INPUT_BUF){
           left_strides = 0;
           input.w = input.e;
           wakeup(&input.r);
         }
       }
-      break;
-    }
+        break;
+      }
   }
   release(&cons.lock);
   if(doprocdump) {
-    procdump();  // now call procdump() wo. cons.lock held
-  }
+        procdump();  // now call procdump() wo. cons.lock held
+      }
 }
 
 int
@@ -407,3 +420,19 @@ consoleinit(void)
   ioapicenable(IRQ_KBD, 0);
 }
 
+// This is the implementation of sys_history huzzah
+int 
+sys_history(void) {
+  char * buffer; 
+  int index;
+
+  if(argstr(0, &buffer) < 0 || argint(1, &index)) 
+    return -1;
+  if(index >= history.lastcommand && index < INPUT_BUF)
+    return -2;
+  else if (index > history.lastcommand) 
+    return -1;
+  memmove(buffer, history.commands[index], history.command_sizes[index]);
+  buffer[history.command_sizes[index]] = 0;
+  return 0;
+}

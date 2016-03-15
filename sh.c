@@ -3,7 +3,6 @@
 #include "types.h"
 #include "user.h"
 #include "fcntl.h"
-
 // Parsed command representation
 #define EXEC  1
 #define REDIR 2
@@ -52,6 +51,16 @@ struct backcmd {
 int fork1(void);  // Fork but panics on failure.
 void panic(char*);
 struct cmd *parsecmd(char*);
+void display_history();
+int
+strcmpaa(const char *p, const char *q, uint n)
+{
+  while(n > 0 && *p && *p == *q)
+    n--, p++, q++;
+  if(n == 0)
+    return 0;
+  return (uchar)*p - (uchar)*q;
+}
 
 // Execute cmd.  Never returns.
 void
@@ -163,6 +172,9 @@ main(void)
       buf[strlen(buf)-1] = 0;  // chop \n
       if(chdir(buf+3) < 0)
         printf(2, "cannot cd %s\n", buf+3);
+      continue;
+    } else if (buf[0] == 'h' && buf[1] =='i') {
+      display_history();
       continue;
     }
     if(fork1() == 0)
@@ -491,4 +503,13 @@ nulterminate(struct cmd *cmd)
     break;
   }
   return cmd;
+}
+
+void display_history(void) {
+ static char buff[100];
+ int index = 0;
+
+ while(history(buff, index++) == 0)
+   printf(1,"%d: %s \n", index, buff);
+
 }
