@@ -256,6 +256,30 @@ wait(void)
     sleep(proc, &ptable.lock);  //DOC: wait-sleep
   }
 }
+
+int wait2(void) {
+  char *retime, *rutime, *stime;
+  int pid = 0;
+  struct proc * p;
+  if(argptr(0,&retime,sizeof(int)) < 0
+      || argptr(1,&rutime,sizeof(int)) < 0
+      || argptr(2,&stime,sizeof(int)) < 0) 
+    return -1;
+  pid = wait(); 
+  // now we have athe pid of a child  process - now we can 
+  // find it in the ptable and foo foo 
+  acquire(&ptable.lock);
+  for(p = ptable.proc; p < &ptable.proc[NPROC] && pid > 0; ++p) 
+    if(p->pid == pid){ //found the child 
+      *retime = p->retime;
+      *rutime = p->rutime;
+      *stime = p->stime;
+      release(&ptable.lock);
+      return pid;
+    }
+  release(&ptable.lock);
+  return -1;
+}
 // This method is icrements the time fields for all the processes
 // each tick, it is called in trap.c when we increment the total amount of 
 // ticks we lock the ptable here!
