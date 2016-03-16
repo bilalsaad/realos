@@ -1,3 +1,3 @@
 bugs:
   going up/down when in the middle of the buffer 
-  find a real way to check for the history command
+  find a real way to check for the history command--done!

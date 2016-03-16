@@ -130,6 +130,7 @@ panic(char *s)
 #define RIGHTARROW 229
 #define CRTPORT 0x3d4
 static ushort *crt = (ushort*)P2V(0xb8000);  // CGA memory
+
 void 
 shift_buffer_right(char* start, char* end) {
   char * tail = end - 1;
@@ -137,13 +138,16 @@ shift_buffer_right(char* start, char* end) {
     *end-- = *tail--;
   }
 }
+
 void
 shift_buffer_left(char * start, char * end) {
  char * hare = start + 1;
  while (hare != end)
    *start++=*hare++;
 }
+
 static int left_strides = 0;
+
 static void
 cgaputc(int c)
 {
@@ -233,20 +237,25 @@ void
 add_to_history(char * start, char * end){
  int i;
  if (history.lastcommand == MAX_HISTORY){
-  for(i=0; i<MAX_HISTORY-1; ++i)
-    memmove(history.commands[i],history.commands[i+1],
-	    history.command_sizes[i+1]);
+  for(i = 0; i < MAX_HISTORY - 1; ++i)
+    memmove(history.commands[i],history.commands[i + 1],
+	    history.command_sizes[i + 1]);
   --history.lastcommand;
  }
  history.command_sizes[history.lastcommand] = end - start;
- memmove(history.commands[history.lastcommand++],start,end-start);
+ memmove(history.commands[history.lastcommand++], start,end-start);
  history.display_command = history.lastcommand - 1;
 }
 
 void 
 kill_line(){
+  input.e = (input.e + left_strides) % INPUT_BUF;
+  while(left_strides){
+    cgaputc(RIGHTARROW);
+    left_strides--;
+  }
   while(input.e != input.w &&
-	input.buf[(input.e-1) % INPUT_BUF] != '\n'){
+	input.buf[(input.e - 1) % INPUT_BUF] != '\n'){
     input.e--;
     consputc(BACKSPACE);
   }
@@ -254,7 +263,7 @@ kill_line(){
 
 void 
 display_history(){
- int i =0;
+ int i = 0;
  int size = history.command_sizes[history.display_command];
  char * cmd = history.commands[history.display_command];
  kill_line();
@@ -316,11 +325,11 @@ consoleintr(int (*getc)(void))
        }
      break;
      case KEY_DN: 
-	if((history.lastcommand - history.display_command ) > 1) {
+	if((history.lastcommand - history.display_command) > 1) {
 	 ++history.display_command;
 	 display_history();
 	}
-	else if (history.lastcommand > history.display_command)
+	else if (history.lastcommand - history.display_command == 1)
 	  kill_line();
      break;
     default:

@@ -173,7 +173,7 @@ main(void)
       if(chdir(buf+3) < 0)
         printf(2, "cannot cd %s\n", buf+3);
       continue;
-    } else if (buf[0] == 'h' && buf[1] =='i') {
+    } else if (strcmp("history\n", buf) == 0) {
       display_history();
       continue;
     }
