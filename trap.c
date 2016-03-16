@@ -13,6 +13,7 @@ struct gatedesc idt[256];
 extern uint vectors[];  // in vectors.S: array of 256 entry pointers
 struct spinlock tickslock;
 uint ticks;
+void increment_process_times(void);
 
 void
 tvinit(void)
@@ -51,6 +52,7 @@ trap(struct trapframe *tf)
     if(cpu->id == 0){
       acquire(&tickslock);
       ticks++;
+      increment_process_times(); 
       wakeup(&ticks);
       release(&tickslock);
     }

@@ -134,7 +134,10 @@ fork(void)
   // Allocate process.
   if((np = allocproc()) == 0)
     return -1;
-
+  np->ctime = ticks;
+  np->stime = 0;
+  np->retime = 0;
+  np->rutime = 0;
   // Copy process state from p.
   if((np->pgdir = copyuvm(proc->pgdir, proc->sz)) == 0){
     kfree(np->kstack);
@@ -252,6 +255,29 @@ wait(void)
     // Wait for children to exit.  (See wakeup1 call in proc_exit.)
     sleep(proc, &ptable.lock);  //DOC: wait-sleep
   }
+}
+// This method is icrements the time fields for all the processes
+// each tick, it is called in trap.c when we increment the total amount of 
+// ticks we lock the ptable here!
+//
+void increment_process_times(void) {
+  struct proc * p;
+  acquire(&ptable.lock);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; ++p)
+    switch (p->state) {
+      case SLEEPING:
+        ++p->stime;
+      break;
+      case RUNNING:
+        ++p->rutime;
+      break;
+      case RUNNABLE:
+        ++p->retime;
+      break;
+      default:
+      break;
+    }
+   release(&ptable.lock);  
 }
 
 //PAGEBREAK: 42
