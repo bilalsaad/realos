@@ -1,6 +1,8 @@
 // Segments in proc->gdt.
 #define NSEGS     7
-
+#define HIGH_PRIO 3
+#define MED_PRIO  2
+#define LOW_PRIO  1
 // Per-CPU state
 struct cpu {
   uchar id;                    // Local APIC ID; index into cpus[] below
@@ -50,7 +52,7 @@ struct context {
 };
 
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
-
+enum proc_dml_options {RETURNING_FROM_SLEEP, FULL_QUANTA, DEFAULT_OPT};
 // Per-process state
 struct proc {
   uint sz;                     // Size of process memory (bytes)
@@ -71,6 +73,8 @@ struct proc {
   int stime;                   // Time in sleep state (SLEEPING) 
   int retime;                  // Time in ready state( RUNNABLE)  
   int rutime;                  // Time in running state (RUNNING)
+  int priority;                // For multi level scheduling 
+  enum proc_dml_options dml_opts; // For dynamic multi level scheduling
 };
 
 // Process memory is laid out contiguously, low addresses first:

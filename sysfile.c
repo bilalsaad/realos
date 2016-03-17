@@ -414,6 +414,9 @@ sys_exec(void)
     if(fetchstr(uarg, &argv[i]) < 0)
       return -1;
   }
+#ifdef DML
+proc->priority = MED_PRIO;
+#endif
   return exec(path, argv);
 }
 

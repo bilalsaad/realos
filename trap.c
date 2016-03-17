@@ -101,14 +101,16 @@ trap(struct trapframe *tf)
   // until it gets to the regular system call return.)
   if(proc && proc->killed && (tf->cs&3) == DPL_USER)
     exit();
-
+ #ifndef FCFS 
   // Force process to give up CPU on clock tick.
   // If interrupts were on while locks held, would need to check nlock.
   // We added the QUANTA condition for yielding over!
   if(proc && proc->state == RUNNING && tf->trapno == T_IRQ0+IRQ_TIMER
-      && (ticks % QUANTA) == 0)
+      && (ticks % QUANTA) == 0) {
+    proc->dml_opts = FULL_QUANTA;
     yield();
-
+  }
+ #endif
   // Check if the process has been killed since we yielded
   if(proc && proc->killed && (tf->cs&3) == DPL_USER)
     exit();

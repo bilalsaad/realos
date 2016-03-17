@@ -1,7 +1,7 @@
 00000000 .text
-00001584 .rodata
-00001690 .eh_frame
-00001b50 .data
+0000158c .rodata
+00001698 .eh_frame
+00001b58 .data
 00001b80 .bss
 00000000 .comment
 00000000 .debug_aranges
@@ -11,21 +11,22 @@
 00000000 .debug_str
 00000000 .debug_loc
 00000000 sh.c
-00001b80 buf.1084
-00001c00 buff.1246
+00001b80 buf.1086
+00001c00 buff.1248
 00000000 ulib.c
 00000dbf stosb
 00000000 printf.c
-000010d7 putc
-000010ff printint
-00001b5e digits.1037
+000010df putc
+00001107 printint
+00001b66 digits.1039
 00000000 umalloc.c
 00001c64 base
 00001c6c freep
-0000144b morecore
+00001453 morecore
 00000000 
 00000de4 strcpy
-000011b7 printf
+000010d7 set_prio
+000011bf printf
 00000fe2 memmove
 0000106f mknod
 00000417 execcmd
@@ -38,9 +39,9 @@
 000006f2 peek
 0000094b parseredirs
 000005a7 gettoken
-000014a3 malloc
+000014ab malloc
 000010b7 sleep
-00001b50 whitespace
+00001b58 whitespace
 000010cf wait2
 000003f2 fork1
 00000c8d nulterminate
@@ -56,7 +57,7 @@
 00000a73 parseblock
 0000105f exec
 0000102f wait
-00001b56 symbols
+00001b5e symbols
 0000103f read
 00000b47 parseexec
 00001077 unlink
@@ -64,7 +65,7 @@
 0000101f fork
 000010af sbrk
 000010bf uptime
-00001b6f __bss_start
+00001b77 __bss_start
 00000e7a memset
 000002bf main
 00000e14 strcmp
@@ -72,7 +73,7 @@
 000004c0 pipecmd
 00000455 redircmd
 00000f47 stat
-00001b6f _edata
+00001b77 _edata
 00001c70 _end
 00001087 link
 00001027 exit
@@ -84,4 +85,4 @@
 0000108f mkdir
 0000104f close
 00000510 listcmd
-0000136a free
+00001372 free

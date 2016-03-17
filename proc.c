@@ -6,7 +6,7 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
-
+#define QUEUE_SIZE NPROC
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
@@ -19,11 +19,97 @@ extern void forkret(void);
 extern void trapret(void);
 
 static void wakeup1(void *chan);
+void enq_to_scheduler (struct proc * p); 
+
+typedef struct {
+  int count;
+  int tail;
+  int head;
+  struct proc* proc[QUEUE_SIZE];
+} queue; 
+
+void queue_init(queue* q) {
+  q->tail = 0;
+  q->count = 0;
+  q->head = 0;
+}
+
+void enqueue(queue* q, struct proc* p){
+  q->proc[q->tail] = p;
+  q->tail = (q->tail + 1) % QUEUE_SIZE;
+  ++q->count;
+}
+
+struct proc * dequeue(queue* q) {
+ struct proc* tmp = q->proc[q->head]; 
+ --q->count;
+ q->head = (q->head + 1) % QUEUE_SIZE;
+ return tmp;
+}
+
+typedef struct {
+  queue pr1;
+  queue pr2;
+  queue pr3;
+} multi_level_queue;
+
+void multi_level_enq(multi_level_queue* q, struct proc * p) {
+ switch (p->priority) {
+    case LOW_PRIO:
+      enqueue(&q->pr1, p);
+    break;
+    
+    case MED_PRIO:
+      enqueue(&q->pr2, p);
+    break;
+    case HIGH_PRIO:
+    default: 
+      enqueue(&q->pr3, p);
+ }
+} 
+
+struct proc* multi_level_dequeue(multi_level_queue* q) {
+  return (q->pr1.count > 0) ? dequeue(&q->pr1) :
+         (q->pr2.count > 0) ? dequeue(&q->pr2) :
+         (q->pr3.count > 0) ? dequeue(&q->pr3) : 0;
+}
+
+struct proc* fcfs_dequeue(queue* q) {
+  struct proc * min = q->proc[q->head];  
+  int i = (q->head+1) % QUEUE_SIZE;
+  if (q->count == 0) return 0;
+  while (i != q->tail) {
+      min = (min->ctime > q->proc[i]->ctime) ? q->proc[i] : min;
+      i = (i+1) % QUEUE_SIZE;
+  }
+  if(min->state != RUNNABLE) 
+    return 0;
+  return min;
+}
+#if defined(SML) || defined(DML)
+  multi_level_queue sch_queue;
+  void init_queue() {
+    queue_init(&sch_queue.pr1);
+    queue_init(&sch_queue.pr2);
+    queue_init(&sch_queue.pr3);
+  } 
+#endif
+
+#ifdef FCFS
+  queue sch_queue;
+  void init_queue() {
+    queue_init(&sch_queue); 
+  }
+#endif
+
 
 void
 pinit(void)
 {
   initlock(&ptable.lock, "ptable");
+#ifndef DEFAULT
+  init_queue();
+#endif
 }
 
 //PAGEBREAK: 32
@@ -33,7 +119,7 @@ pinit(void)
 // Otherwise return 0.
 static struct proc*
 allocproc(void)
-{
+{ // here we can choose to which queue we want him to be sent..
   struct proc *p;
   char *sp;
 
@@ -96,10 +182,15 @@ userinit(void)
   p->tf->esp = PGSIZE;
   p->tf->eip = 0;  // beginning of initcode.S
 
+
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
+  p->ctime = 1231231;
+  p->priority = MED_PRIO;
+  p->dml_opts = DEFAULT_OPT;
+  enq_to_scheduler(p);
 }
 
 // Grow current process's memory by n bytes.
@@ -121,7 +212,30 @@ growproc(int n)
   switchuvm(proc);
   return 0;
 }
-
+// Adds the newly created process to the appropriate queue.
+void enq_to_scheduler (struct proc * p) {
+#ifdef DEFAULT
+  return;
+#endif
+#ifdef FCFS 
+  enqueue(&sch_queue, p);
+#endif
+#ifdef SML 
+  multi_level_enq(&sch_queue,p);
+#endif
+#ifdef DML
+  switch (p->dml_opts) {
+    case RETURNING_FROM_SLEEP: 
+      p->priority = HIGH_PRIO;
+    break;
+    case FULL_QUANTA:
+      p->priority -= (p->priority > LOW_PRIO) ? 1 : 0;
+    break;
+    default: ;
+  }
+  multi_level_enq(&sch_queue, p);
+#endif
+}
 // Create a new process copying p as the parent.
 // Sets up stack to return as if from system call.
 // Caller must set state of returned proc to RUNNABLE.
@@ -138,6 +252,8 @@ fork(void)
   np->stime = 0;
   np->retime = 0;
   np->rutime = 0;
+  np->priority = proc->priority;
+  np->dml_opts = DEFAULT_OPT;
   // Copy process state from p.
   if((np->pgdir = copyuvm(proc->pgdir, proc->sz)) == 0){
     kfree(np->kstack);
@@ -164,6 +280,7 @@ fork(void)
   // lock to force the compiler to emit the np->state write last.
   acquire(&ptable.lock);
   np->state = RUNNABLE;
+  enq_to_scheduler(np);
   release(&ptable.lock);
   
   return pid;
@@ -304,6 +421,49 @@ void increment_process_times(void) {
    release(&ptable.lock);  
 }
 
+#ifdef DEFAULT
+  // The default scheduling scheme
+  struct proc* first_process(){
+     return ptable.proc; 
+  }
+
+  int end_of_round(struct proc* p){
+    return p == &ptable.proc[NPROC];
+  }
+  
+  struct proc* next_proc(struct proc* p){
+    return p+1;
+  }
+#endif 
+
+#ifdef FCFS
+  // The First Come First Serve scheduling scheme
+  // non preemtive policy that selects the process with lowest ctime
+  int end_of_round(struct proc* p) {
+    return p == 0;
+  } 
+  
+  struct proc* next_proc(struct proc* p) {
+    return fcfs_dequeue(&sch_queue);
+  } 
+
+  struct proc* first_process() {
+   return next_proc(0); 
+  }
+#endif
+
+#if defined(SML) || defined(DML)
+  // Multi level queue that includes 3 priority levels.
+  int end_of_round(struct proc* p) {
+    return p == 0;
+  }
+  struct proc* next_proc(struct proc* p) {
+    return multi_level_dequeue(&sch_queue);
+  }
+  struct proc* first_process() {
+    return next_proc(0);
+  }
+#endif
 //PAGEBREAK: 42
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
@@ -323,7 +483,7 @@ scheduler(void)
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    for(p = first_process(); !end_of_round(p); p = next_proc(p)){
       if(p->state != RUNNABLE)
         continue;
 
@@ -371,6 +531,7 @@ yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
   proc->state = RUNNABLE;
+  enq_to_scheduler(proc);
   sched();
   release(&ptable.lock);
 }
@@ -442,8 +603,11 @@ wakeup1(void *chan)
   struct proc *p;
 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    if(p->state == SLEEPING && p->chan == chan)
+    if(p->state == SLEEPING && p->chan == chan) {
       p->state = RUNNABLE;
+      p->dml_opts = RETURNING_FROM_SLEEP;
+      enq_to_scheduler(p);
+    }
 }
 
 // Wake up all processes sleeping on chan.
@@ -468,8 +632,10 @@ kill(int pid)
     if(p->pid == pid){
       p->killed = 1;
       // Wake process from sleep if necessary.
-      if(p->state == SLEEPING)
+      if(p->state == SLEEPING) {
         p->state = RUNNABLE;
+        enq_to_scheduler(p);
+      }
       release(&ptable.lock);
       return 0;
     }
