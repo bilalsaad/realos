@@ -106,3 +106,11 @@ sys_set_prio(void)
   proc->priority = prio;
   return 0;
 }
+
+// This system call with yield execution to another process
+int 
+sys_yield(void)
+{
+  yield();
+  return 0;
+}

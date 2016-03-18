@@ -28,6 +28,14 @@ typedef struct {
   struct proc* proc[QUEUE_SIZE];
 } queue; 
 
+typedef struct {
+  int count;
+  struct proc* elem[QUEUE_SIZE];
+} min_heap;
+
+void mh_enq(min_heap* hp, struct proc* p);
+struct proc* mh_deq(min_heap* hp); 
+
 void queue_init(queue* q) {
   q->tail = 0;
   q->count = 0;
@@ -74,16 +82,11 @@ struct proc* multi_level_dequeue(multi_level_queue* q) {
          (q->pr3.count > 0) ? dequeue(&q->pr3) : 0;
 }
 
-struct proc* fcfs_dequeue(queue* q) {
-  struct proc * min = q->proc[q->head];  
-  int i = (q->head+1) % QUEUE_SIZE;
-  if (q->count == 0) return 0;
-  while (i != q->tail) {
-      min = (min->ctime > q->proc[i]->ctime) ? q->proc[i] : min;
-      i = (i+1) % QUEUE_SIZE;
-  }
-  if(min->state != RUNNABLE) 
-    return 0;
+struct proc* fcfs_dequeue(min_heap* q) {
+  int sz = q->count;
+  struct proc* min = 0;
+  if (0 != sz)
+     min = mh_deq(q); 
   return min;
 }
 #if defined(SML) || defined(DML)
@@ -96,9 +99,9 @@ struct proc* fcfs_dequeue(queue* q) {
 #endif
 
 #ifdef FCFS
-  queue sch_queue;
+  min_heap sch_queue;
   void init_queue() {
-    queue_init(&sch_queue); 
+    sch_queue.count = 0;
   }
 #endif
 
@@ -218,7 +221,7 @@ void enq_to_scheduler (struct proc * p) {
   return;
 #endif
 #ifdef FCFS 
-  enqueue(&sch_queue, p);
+  mh_enq(&sch_queue, p);
 #endif
 #ifdef SML 
   multi_level_enq(&sch_queue,p);
@@ -334,7 +337,7 @@ exit(void)
 // Wait for a child process to exit and return its pid.
 // Return -1 if this process has no children.
 int
-wait(void)
+wait_helper(int* retime, int* rutime, int* stime) 
 {
   struct proc *p;
   int havekids, pid;
@@ -349,6 +352,9 @@ wait(void)
       havekids = 1;
       if(p->state == ZOMBIE){
         // Found one.
+        *retime = p->retime;
+        *rutime = p->rutime;
+        *stime = p->stime;
         pid = p->pid;
         kfree(p->kstack);
         p->kstack = 0;
@@ -373,29 +379,18 @@ wait(void)
     sleep(proc, &ptable.lock);  //DOC: wait-sleep
   }
 }
-
+int
+wait(void) {
+  int a, b, c;
+  return wait_helper(&a,&b,&c);
+}
 int wait2(void) {
-  char *retime, *rutime, *stime;
-  int pid = 0;
-  struct proc * p;
-  if(argptr(0,&retime,sizeof(int)) < 0
-      || argptr(1,&rutime,sizeof(int)) < 0
-      || argptr(2,&stime,sizeof(int)) < 0) 
+  int *retime, *rutime, *stime;
+  if(argptr(0,(char**)&retime,sizeof(retime)) < 0
+      || argptr(1,(char**) &rutime,sizeof(retime)) < 0
+      || argptr(2,(char**) &stime,sizeof(retime)) < 0) 
     return -1;
-  pid = wait(); 
-  // now we have athe pid of a child  process - now we can 
-  // find it in the ptable and foo foo 
-  acquire(&ptable.lock);
-  for(p = ptable.proc; p < &ptable.proc[NPROC] && pid > 0; ++p) 
-    if(p->pid == pid){ //found the child 
-      *retime = p->retime;
-      *rutime = p->rutime;
-      *stime = p->stime;
-      release(&ptable.lock);
-      return pid;
-    }
-  release(&ptable.lock);
-  return -1;
+  return  wait_helper(retime,rutime,stime); 
 }
 // This method is icrements the time fields for all the processes
 // each tick, it is called in trap.c when we increment the total amount of 
@@ -680,3 +675,47 @@ procdump(void)
     cprintf("\n");
   }
 }
+
+// min-heap  implementation 
+
+#define LC(x) (2 * x + 1)
+#define RC(x) (2 * x + 2)
+#define PARENT(x) ((x - 1) / 2)
+// Adds to heap - user must check if heap is full or not
+void mh_enq(min_heap* hp, struct proc* p) {
+  // Positioning the node at the right position in the heap
+  int i = hp->count++;
+  while(i && p->ctime < hp->elem[PARENT(i)]->ctime) {
+    hp->elem[i] = hp->elem[PARENT(i)];
+    i = PARENT(i);
+  }
+  hp->elem[i] = p;
+}
+
+//removes the top element from the heap, user much check if heap is empty.
+struct proc * mh_deq(min_heap* hp) {
+  struct proc * min = hp->elem[0]; //the minimum element  
+  struct proc* tmp = 0; // for swapping purposes;
+  int i = 0;
+  int minidx;
+  hp->elem[0] = hp->elem[--hp->count]; //biggest fellow in first for now..
+
+  while(i < hp->count) { //heapify
+   minidx = i; 
+   if(LC(i) < hp->count && hp->elem[LC(i)] < hp->elem[minidx])
+     minidx = LC(i);
+   if(RC(i) < hp->count && hp->elem[RC(i)] < hp->elem[minidx])
+     minidx = RC(i);
+   if(minidx != i) {
+     // here we want swap arr[mnidx] and arr[i]..
+    tmp = hp->elem[i];
+    hp->elem[i] = hp->elem[minidx];
+    hp->elem[minidx] = tmp;
+    i=minidx;
+   }
+   else 
+     break;
+  }
+  return min;
+}
+
