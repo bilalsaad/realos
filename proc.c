@@ -58,7 +58,6 @@ void multi_level_enq(multi_level_queue* q, struct proc * p) {
     case LOW_PRIO:
       enqueue(&q->pr1, p);
     break;
-    
     case MED_PRIO:
       enqueue(&q->pr2, p);
     break;
@@ -79,11 +78,13 @@ struct proc* fcfs_dequeue(queue* q) {
   int i = (q->head+1) % QUEUE_SIZE;
   if (q->count == 0) return 0;
   while (i != q->tail) {
-      min = (min->ctime > q->proc[i]->ctime) ? q->proc[i] : min;
+      min = (min->ctime > q->proc[i]->ctime &&
+          q->proc[i]->state ==  RUNNABLE) ?
+        q->proc[i] : min;
       i = (i+1) % QUEUE_SIZE;
   }
   if(min->state != RUNNABLE) 
-    return 0;
+    panic("dequeued a non runnable process fcfs_dequeue \n");
   return min;
 }
 #if defined(SML) || defined(DML)
@@ -187,7 +188,7 @@ userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
-  p->ctime = 1231231;
+  p->ctime = 0;
   p->priority = MED_PRIO;
   p->dml_opts = DEFAULT_OPT;
   enq_to_scheduler(p);
@@ -383,7 +384,7 @@ int wait2(void) {
       || argptr(2,&stime,sizeof(int)) < 0) 
     return -1;
   pid = wait(); 
-  // now we have athe pid of a child  process - now we can 
+  // now we have the pid of a child  process - now we can 
   // find it in the ptable and foo foo 
   acquire(&ptable.lock);
   for(p = ptable.proc; p < &ptable.proc[NPROC] && pid > 0; ++p) 
@@ -480,7 +481,6 @@ scheduler(void)
   for(;;){
     // Enable interrupts on this processor.
     sti();
-
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
     for(p = first_process(); !end_of_round(p); p = next_proc(p)){
@@ -501,7 +501,6 @@ scheduler(void)
       proc = 0;
     }
     release(&ptable.lock);
-
   }
 }
 
