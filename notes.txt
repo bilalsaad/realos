@@ -1,0 +1,46 @@
+running sanity 4 with DML:
+  Average sleeptime for S-CPU is 0 
+  Average sleeptime for IO is 100 
+  Average readytime for CPU is 23 
+  Average readytime for S-CPU is 21 
+  Average readytime for IO is 6 
+  Average turn around time for CPU is 249 
+  Average turn around time for S-CPU is 476 
+  Average turn around time for IO is 107 
+  
+
+running sanity 4 with SML:
+  Average sleeptime for CPU is 0 
+  Average sleeptime for S-CPU is 0 
+  Average sleeptime for IO is 100 
+  Average readytime for CPU is 19 
+  Average readytime for S-CPU is 9 
+  Average readytime for IO is 8 
+  Average turn around time for CPU is 226 
+  Average turn around time for S-CPU is 733 
+  Average turn around time for IO is 108 
+
+running sanity 4 with DEFAULT:
+  Average sleeptime for CPU is 0 
+  Average sleeptime for S-CPU is 0 
+  Average sleeptime for IO is 100 
+  Average readytime for CPU is 25 
+  Average readytime for S-CPU is 25 
+  Average readytime for IO is 7 
+  Average turn around time for CPU is 256 
+  Average turn around time for S-CPU is 424 
+  Average turn around time for IO is 108 
+
+running sanity 4 with FCFS: 
+  Average sleeptime for CPU is 0 
+  Average sleeptime for S-CPU is 0 
+  Average sleeptime for IO is 100 
+  Average readytime for CPU is 18 
+  Average readytime for S-CPU is 15 
+  Average readytime for IO is 6 
+  Average turn around time for CPU is 212 
+  Average turn around time for S-CPU is 433 
+  Average turn around time for IO is 109 
+
+
+   

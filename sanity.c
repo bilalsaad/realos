@@ -11,10 +11,10 @@ const char * get_test_name(enum test_type test){
 			   	"IO" ;
 }
 
-void statistics(enum test_type test, double n, int sleeptime,
+void statistics(enum test_type test, int n, int sleeptime,
     const char * test_group){
   printf(1, "Average %s for %s is %d \n",test_group,
-      get_test_name(test), sleeptime);
+      get_test_name(test), sleeptime/n);
 }
 
 void sleeptime(enum test_type test, int n, int info) {
