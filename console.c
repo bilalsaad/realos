@@ -26,7 +26,7 @@ static struct {
   int locking;
 } cons;
 
-static void
+  static void
 printint(int xx, int base, int sign)
 {
   static char digits[] = "0123456789abcdef";
@@ -53,7 +53,7 @@ printint(int xx, int base, int sign)
 //PAGEBREAK: 50
 
 // Print to the console. only understands %d, %x, %p, %s.
-void
+  void
 cprintf(char *fmt, ...)
 {
   int i, c, locking;
@@ -77,27 +77,27 @@ cprintf(char *fmt, ...)
     if(c == 0)
       break;
     switch(c){
-    case 'd':
-      printint(*argp++, 10, 1);
-      break;
-    case 'x':
-    case 'p':
-      printint(*argp++, 16, 0);
-      break;
-    case 's':
-      if((s = (char*)*argp++) == 0)
-        s = "(null)";
-      for(; *s; s++)
-        consputc(*s);
-      break;
-    case '%':
-      consputc('%');
-      break;
-    default:
-      // Print unknown % sequence to draw attention.
-      consputc('%');
-      consputc(c);
-      break;
+      case 'd':
+        printint(*argp++, 10, 1);
+        break;
+      case 'x':
+      case 'p':
+        printint(*argp++, 16, 0);
+        break;
+      case 's':
+        if((s = (char*)*argp++) == 0)
+          s = "(null)";
+        for(; *s; s++)
+          consputc(*s);
+        break;
+      case '%':
+        consputc('%');
+        break;
+      default:
+        // Print unknown % sequence to draw attention.
+        consputc('%');
+        consputc(c);
+        break;
     }
   }
 
@@ -105,12 +105,12 @@ cprintf(char *fmt, ...)
     release(&cons.lock);
 }
 
-void
+  void
 panic(char *s)
 {
   int i;
   uint pcs[10];
-  
+
   cli();
   cons.locking = 0;
   cprintf("cpu%d: panic: ", cpu->id);
@@ -141,18 +141,18 @@ shift_buffer_right(char* start, char* end) {
 
 void
 shift_buffer_left(char * start, char * end) {
- char * hare = start + 1;
- while (hare != end)
-   *start++=*hare++;
+  char * hare = start + 1;
+  while (hare != end)
+    *start++=*hare++;
 }
 
 static int left_strides = 0;
 
-static void
+  static void
 cgaputc(int c)
 {
   int pos, i=0;
-  
+
   // Cursor position: col + 80*row.
   outb(CRTPORT, 14);
   pos = inb(CRTPORT+1) << 8;
@@ -164,29 +164,29 @@ cgaputc(int c)
   else if(c == BACKSPACE){
     if(pos > 0) --pos;
     if (left_strides > 0) {
-	for ( i = pos; i<=left_strides+pos; ++i)
-	  crt[i]=crt[i+1];
+      for ( i = pos; i<=left_strides+pos; ++i)
+        crt[i]=crt[i+1];
     }
   } else if (c == LEFTARROW) {
     if (pos > 0) --pos;
   } else if (c == RIGHTARROW) {
-      ++pos;
+    ++pos;
   } else{
-      i = left_strides;
-      while(i-->0){
-	crt[pos + i + 1]=crt[pos + i];
-      }
-      crt[pos++] = (c&0xff) | 0x0700;  // black on white
+    i = left_strides;
+    while(i-->0){
+      crt[pos + i + 1]=crt[pos + i];
+    }
+    crt[pos++] = (c&0xff) | 0x0700;  // black on white
   }
   if(pos < 0 || pos > 25*80)
     panic("pos under/overflow");
-  
+
   if((pos/80) >= 24){  // Scroll up.
     memmove(crt, crt+80, sizeof(crt[0])*23*80);
     pos -= 80;
     memset(crt+pos, 0, sizeof(crt[0])*(24*80 - pos));
   }
-  
+
   outb(CRTPORT, 14);
   outb(CRTPORT+1, pos>>8);
   outb(CRTPORT, 15);
@@ -197,7 +197,7 @@ cgaputc(int c)
     crt[pos] = ' ' | 0x0700;
 }
 
-void
+  void
 consputc(int c)
 {
   if(panicked){
@@ -235,16 +235,16 @@ struct {
 //adds a string from start to end to history
 void
 add_to_history(char * start, char * end){
- int i;
- if (history.lastcommand == MAX_HISTORY){
-  for(i = 0; i < MAX_HISTORY - 1; ++i)
-    memmove(history.commands[i],history.commands[i + 1],
-	    history.command_sizes[i + 1]);
-  --history.lastcommand;
- }
- history.command_sizes[history.lastcommand] = end - start;
- memmove(history.commands[history.lastcommand++], start,end-start);
- history.display_command = history.lastcommand - 1;
+  int i;
+  if (history.lastcommand == MAX_HISTORY){
+    for(i = 0; i < MAX_HISTORY - 1; ++i)
+      memmove(history.commands[i],history.commands[i + 1],
+          history.command_sizes[i + 1]);
+    --history.lastcommand;
+  }
+  history.command_sizes[history.lastcommand] = end - start;
+  memmove(history.commands[history.lastcommand++], start,end-start);
+  history.display_command = history.lastcommand - 1;
 }
 
 void 
@@ -255,7 +255,7 @@ kill_line(){
     left_strides--;
   }
   while(input.e != input.w &&
-	input.buf[(input.e - 1) % INPUT_BUF] != '\n'){
+      input.buf[(input.e - 1) % INPUT_BUF] != '\n'){
     input.e--;
     consputc(BACKSPACE);
   }
@@ -263,19 +263,19 @@ kill_line(){
 
 void 
 display_history(){
- int i = 0;
- int size = history.command_sizes[history.display_command];
- char * cmd = history.commands[history.display_command];
- kill_line();
- input.e = input.w;
- memmove(input.buf + input.w, cmd, size);
- for (i = 0; i < size; ++i){
-   consputc(*cmd++);
- }
- input.e+=size % INPUT_BUF;
+  int i = 0;
+  int size = history.command_sizes[history.display_command];
+  char * cmd = history.commands[history.display_command];
+  kill_line();
+  input.e = input.w;
+  memmove(input.buf + input.w, cmd, size);
+  for (i = 0; i < size; ++i){
+    consputc(*cmd++);
+  }
+  input.e+=size % INPUT_BUF;
 }
- 
-void
+
+  void
 consoleintr(int (*getc)(void))
 {
   int c, doprocdump = 0;
@@ -283,88 +283,88 @@ consoleintr(int (*getc)(void))
   acquire(&cons.lock);
   while((c = getc()) >= 0){
     switch(c){
-    case C('P'):  // Process listing.
-      doprocdump = 1;   // procdump() locks cons.lock indirectly; invoke later
-      break;
-    case C('U'):  // Kill line.
-      while(input.e != input.w &&
-            input.buf[(input.e-1) % INPUT_BUF] != '\n'){
-        input.e--;
-        consputc(BACKSPACE);
-      }
-      break;
-    case C('H'): case '\x7f':  // Backspace
-      if(input.e != input.w){
-        input.e--;
-        if(left_strides > 0){
-         shift_buffer_left(input.buf + input.e,
-               input.buf + input.e + left_strides +1);
-              
-        }
-            consputc(BACKSPACE);
-      }
-      break;
-     case LEFTARROW: //makeshift left arrow
-      if(input.e != input.w) { //we want to shift the buffer to the right
-       cgaputc(LEFTARROW);
-       ++left_strides;
-       --input.e;
-      }
-      break;
-     case RIGHTARROW:
-      if(left_strides > 0) {
-        cgaputc(RIGHTARROW);
-        --left_strides;
-        ++input.e;
-      }
-      break;
-     case KEY_UP: 
-       if(history.lastcommand > 0) {
-           display_history();
-	   history.display_command -= (history.display_command) ? 1 :0;
-       }
-     break;
-     case KEY_DN: 
-	if((history.lastcommand - history.display_command) > 1) {
-	 ++history.display_command;
-	 display_history();
-	}
-	else if (history.lastcommand - history.display_command == 1)
-	  kill_line();
-     break;
-    default:
-      if(c != 0 && input.e-input.r < INPUT_BUF){
-        c = (c == '\r') ? '\n' : c;
-        if('\n' == c){  // if we press enter we want the whole buffer to be
-          input.e = (input.e + left_strides) % INPUT_BUF;
-           if(input.e != input.w) 
-	     add_to_history(input.buf + input.w,
-               input.buf + input.e);
-            left_strides  = 0;
-        }
-       
-        if (left_strides > 0) { //if we've taken a left and then we write.
-          shift_buffer_right(input.buf + input.e,
-               input.buf + input.e + left_strides);
-        }
-        input.buf[input.e++ % INPUT_BUF] = c;
-        consputc(c);
-        if(c == '\n' || c == C('D') || input.e == input.r+INPUT_BUF){
-          left_strides = 0;
-          input.w = input.e;
-          wakeup(&input.r);
-        }
-      }
+      case C('P'):  // Process listing.
+        doprocdump = 1;   // procdump() locks cons.lock indirectly; invoke later
         break;
-      }
+      case C('U'):  // Kill line.
+        while(input.e != input.w &&
+            input.buf[(input.e-1) % INPUT_BUF] != '\n'){
+          input.e--;
+          consputc(BACKSPACE);
+        }
+        break;
+      case C('H'): case '\x7f':  // Backspace
+        if(input.e != input.w){
+          input.e--;
+          if(left_strides > 0){
+            shift_buffer_left(input.buf + input.e,
+                input.buf + input.e + left_strides +1);
+
+          }
+          consputc(BACKSPACE);
+        }
+        break;
+      case LEFTARROW: //makeshift left arrow
+        if(input.e != input.w) { //we want to shift the buffer to the right
+          cgaputc(LEFTARROW);
+          ++left_strides;
+          --input.e;
+        }
+        break;
+      case RIGHTARROW:
+        if(left_strides > 0) {
+          cgaputc(RIGHTARROW);
+          --left_strides;
+          ++input.e;
+        }
+        break;
+      case KEY_UP: 
+        if(history.lastcommand > 0) {
+          display_history();
+          history.display_command -= (history.display_command) ? 1 : 0;
+        }
+        break;
+      case KEY_DN: 
+        if((history.lastcommand - history.display_command) > 1) {
+          ++history.display_command;
+          display_history();
+        }
+        else if (history.lastcommand - history.display_command == 1)
+          kill_line();
+        break;
+      default:
+        if(c != 0 && input.e-input.r < INPUT_BUF){
+          c = (c == '\r') ? '\n' : c;
+          if('\n' == c){  // if we press enter we want the whole buffer to be
+            input.e = (input.e + left_strides) % INPUT_BUF;
+            if(input.e != input.w) 
+              add_to_history(input.buf + input.w,
+                  input.buf + input.e);
+            left_strides  = 0;
+          }
+
+          if (left_strides > 0) { //if we've taken a left and then we write.
+            shift_buffer_right(input.buf + input.e,
+                input.buf + input.e + left_strides);
+          }
+          input.buf[input.e++ % INPUT_BUF] = c;
+          consputc(c);
+          if(c == '\n' || c == C('D') || input.e == input.r+INPUT_BUF){
+            left_strides = 0;
+            input.w = input.e;
+            wakeup(&input.r);
+          }
+        }
+        break;
+    }
   }
   release(&cons.lock);
   if(doprocdump) {
-        procdump();  // now call procdump() wo. cons.lock held
-      }
+    procdump();  // now call procdump() wo. cons.lock held
+  }
 }
 
-int
+  int
 consoleread(struct inode *ip, char *dst, int n)
 {
   uint target;
@@ -401,7 +401,7 @@ consoleread(struct inode *ip, char *dst, int n)
   return target - n;
 }
 
-int
+  int
 consolewrite(struct inode *ip, char *buf, int n)
 {
   int i;
@@ -416,7 +416,7 @@ consolewrite(struct inode *ip, char *buf, int n)
   return n;
 }
 
-void
+  void
 consoleinit(void)
 {
   initlock(&cons.lock, "console");
