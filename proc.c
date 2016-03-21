@@ -66,20 +66,21 @@ void multi_level_enq(multi_level_queue* q, struct proc * p) {
     case LOW_PRIO:
       enqueue(&q->pr1, p);
     break;
-    
     case MED_PRIO:
       enqueue(&q->pr2, p);
     break;
     case HIGH_PRIO:
-    default: 
       enqueue(&q->pr3, p);
+    break;
+    default: 
+      panic("invalid priority \n");
  }
 } 
 
 struct proc* multi_level_dequeue(multi_level_queue* q) {
-  return (q->pr1.count > 0) ? dequeue(&q->pr1) :
+  return (q->pr3.count > 0) ? dequeue(&q->pr3) :
          (q->pr2.count > 0) ? dequeue(&q->pr2) :
-         (q->pr3.count > 0) ? dequeue(&q->pr3) : 0;
+         (q->pr1.count > 0) ? dequeue(&q->pr1) : 0;
 }
 
 struct proc* fcfs_dequeue(min_heap* q) {
@@ -190,7 +191,10 @@ userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
-  p->ctime = 1231231;
+  p->ctime = 0;
+  p->rutime = 0;
+  p->stime = 0;
+  p->retime = 0;
   p->priority = MED_PRIO;
   p->dml_opts = DEFAULT_OPT;
   enq_to_scheduler(p);
@@ -220,12 +224,15 @@ void enq_to_scheduler (struct proc * p) {
 #ifdef DEFAULT
   return;
 #endif
+
 #ifdef FCFS 
   mh_enq(&sch_queue, p);
 #endif
+
 #ifdef SML 
   multi_level_enq(&sch_queue,p);
 #endif
+
 #ifdef DML
   switch (p->dml_opts) {
     case RETURNING_FROM_SLEEP: 
@@ -386,11 +393,11 @@ wait(void) {
 }
 int wait2(void) {
   int *retime, *rutime, *stime;
-  if(argptr(0,(char**)&retime,sizeof(retime)) < 0
+  if(argptr(0,(char**) &retime,sizeof(retime)) < 0
       || argptr(1,(char**) &rutime,sizeof(retime)) < 0
       || argptr(2,(char**) &stime,sizeof(retime)) < 0) 
     return -1;
-  return  wait_helper(retime,rutime,stime); 
+  return wait_helper(retime,rutime,stime); 
 }
 // This method is icrements the time fields for all the processes
 // each tick, it is called in trap.c when we increment the total amount of 
@@ -406,6 +413,7 @@ void increment_process_times(void) {
       break;
       case RUNNING:
         ++p->rutime;
+        ++p->ticks;
       break;
       case RUNNABLE:
         ++p->retime;
@@ -485,6 +493,7 @@ scheduler(void)
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
+      p->ticks = 0;  // New quanta 
       proc = p;
       switchuvm(p);
       p->state = RUNNING;

@@ -74,6 +74,7 @@ struct proc {
   int retime;                  // Time in ready state( RUNNABLE)  
   int rutime;                  // Time in running state (RUNNING)
   int priority;                // For multi level scheduling 
+  int ticks;                   // Number of consequtive ticks ran for QUANTA
   enum proc_dml_options dml_opts; // For dynamic multi level scheduling
 };
 

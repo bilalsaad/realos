@@ -106,7 +106,7 @@ trap(struct trapframe *tf)
   // If interrupts were on while locks held, would need to check nlock.
   // We added the QUANTA condition for yielding over!
   if(proc && proc->state == RUNNING && tf->trapno == T_IRQ0+IRQ_TIMER
-      && (ticks % QUANTA) == 0) {
+      && proc->ticks >= QUANTA) {
     proc->dml_opts = FULL_QUANTA;
     yield();
   }
